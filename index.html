@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Squared: Tournament Edition</title>
+    
+    <!-- React & DOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Three.js for 3D View -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body { margin: 0; overflow-x: hidden; background-color: #f8fafc; }
+        canvas { touch-action: none; }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        
+        /* Custom scrollbar for modals */
+        .custom-scroll::-webkit-scrollbar { width: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        // --- Inline Icons ---
+        const Trophy = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>;
+        const RefreshCw = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>;
+        const User = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+        const Cpu = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>;
+        const BrainCircuit = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M9 13a4.5 4.5 0 0 0 3-4"/><path d="M6.003 5.125A3 3 0 0 1 19.5 8"/><path d="M12 18a4 4 0 0 0 4-4 4.5 4.5 0 0 0-3-4"/><path d="M15.5 8a4 4 0 0 1 4 4 4.5 4.5 0 0 1-2 4"/><path d="M20 10v2"/><path d="M9 21v2"/><path d="M12 21v2"/></svg>;
+        const Scale = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>;
+        const Zap = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+        const BarChart3 = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>;
+        const Box = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22v-9"/></svg>;
+        const BookOpen = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>;
+        const Gift = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>;
+        const Facebook = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>;
+        const FileText = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>;
+        const Copy = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
+
+        // --- Constants ---
+        const GRID_SIZE = 19;
+        const PADDING = 30;
+        const DRAW_MARGIN = 10;
+        
+        const COLORS = {
+            red: '#ef4444',
+            blue: '#3b82f6',
+            redHex: 0xef4444,
+            blueHex: 0x3b82f6,
+            grid: '#000000',
+            hoverInvalid: 'rgba(239, 68, 68, 0.5)',
+            redTint: 'rgba(239, 68, 68, 0.1)',
+            blueTint: 'rgba(59, 130, 246, 0.1)',
+        };
+
+        const toNotation = (p) => {
+            const file = String.fromCharCode(65 + p.c); 
+            const rank = 19 - p.r;
+            return `${file}${rank}`;
+        };
+
+        // --- Rules Modal ---
+        const RulesModal = ({ onClose }) => (
+            <div className="absolute inset-0 z-50 bg-white/95 flex items-center justify-center p-4 fade-in">
+                <div className="bg-white max-w-lg w-full rounded-2xl shadow-2xl border border-slate-200 p-6 flex flex-col max-h-[85vh]">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800">
+                            <BookOpen className="w-6 h-6 text-slate-600"/> How to Play
+                        </h2>
+                        <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><span className="text-2xl leading-none">&times;</span></button>
+                    </div>
+                    
+                    <div className="overflow-y-auto custom-scroll pr-2 space-y-4 text-slate-600">
+                        <section>
+                            <h3 className="font-bold text-slate-900">The Basics</h3>
+                            <ul className="list-disc pl-5 space-y-1 text-sm">
+                                <li>Draw lines of <strong>any length</strong> horizontally or vertically.</li>
+                                <li>Lines cannot be drawn on top of existing segments.</li>
+                                <li><strong>Goal:</strong> Complete perfect squares.</li>
+                            </ul>
+                        </section>
+                        
+                        <section>
+                            <h3 className="font-bold text-slate-900">Scoring (n²)</h3>
+                            <p className="text-sm">Completing a square of size <span className="font-mono">n</span> scores <span className="font-mono">n²</span> points.</p>
+                            <p className="text-sm italic mt-1 text-slate-500">Examples:</p>
+                            <div className="grid grid-cols-3 gap-2 text-xs text-center mt-1">
+                                <div className="bg-slate-100 p-2 rounded">1x1 = 1 pt</div>
+                                <div className="bg-slate-100 p-2 rounded">5x5 = 25 pts</div>
+                                <div className="bg-slate-100 p-2 rounded">10x10 = 100 pts</div>
+                            </div>
+                        </section>
+
+                        <section>
+                            <h3 className="font-bold text-slate-900">AI Levels</h3>
+                            <div className="space-y-2 text-sm">
+                                <div className="border-l-4 border-green-400 pl-2">
+                                    <strong className="block text-green-700">Level 1 (Mentor)</strong>
+                                    Allows you to stay ahead by 1-15 points. It plays defensively if you are losing but won't let you run away with the game.
+                                </div>
+                                <div className="border-l-4 border-yellow-400 pl-2">
+                                    <strong className="block text-yellow-700">Level 2 (Rival)</strong>
+                                    Tries to keep a 1-15 point lead over you. Beware: If you leave points on the board for too long ("lolligaging"), it will snatch them!
+                                </div>
+                                <div className="border-l-4 border-red-500 pl-2">
+                                    <strong className="block text-red-700">Level 3 (Glutton)</strong>
+                                    Max strength. Eats everything. No mercy.
+                                </div>
+                            </div>
+                        </section>
+
+                        <section>
+                            <h3 className="font-bold text-slate-900">Tournament Rules</h3>
+                            <ul className="list-disc pl-5 space-y-1 text-sm">
+                                <li>The game is a <strong>Draw</strong> if the final score difference is 10 points or less.</li>
+                                <li>You must win by <strong>11+ points</strong> to claim victory.</li>
+                            </ul>
+                        </section>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-slate-100">
+                        <button onClick={onClose} className="w-full py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-semibold">Got it</button>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- Game Record Modal ---
+        const GameRecordModal = ({ moves, onClose }) => {
+            const groupedMoves = [];
+            for (let i = 0; i < moves.length; i += 2) {
+                groupedMoves.push({
+                    turnNumber: (i / 2) + 1,
+                    red: moves[i],
+                    blue: moves[i + 1] || null
+                });
+            }
+
+            const formatMove = (m) => {
+                if (!m) return '';
+                const moveStr = `${toNotation(m.start)} - ${toNotation(m.end)}`;
+                const pts = m.points > 0 ? ` (${m.points})` : '';
+                return `${moveStr}${pts}`;
+            };
+
+            const copyToClipboard = () => {
+                const text = groupedMoves.map(g => {
+                    const redStr = formatMove(g.red);
+                    const blueStr = g.blue ? formatMove(g.blue) : '';
+                    return `${g.turnNumber}. ${redStr} : ${blueStr}`;
+                }).join('\n');
+                
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-9999px";
+                textArea.style.top = "0";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    const successful = document.execCommand('copy');
+                    if(successful) alert("Game record copied to clipboard!");
+                    else alert("Unable to copy to clipboard. Please copy manually.");
+                } catch (err) {
+                    alert("Unable to copy to clipboard. Please copy manually.");
+                }
+                
+                document.body.removeChild(textArea);
+            };
+
+            return (
+                <div className="absolute inset-0 z-50 bg-white/95 flex items-center justify-center p-4 fade-in">
+                    <div className="bg-white max-w-lg w-full rounded-2xl shadow-2xl border border-slate-200 p-6 flex flex-col max-h-[85vh]">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800">
+                                <FileText className="w-6 h-6 text-slate-600"/> Game Record
+                            </h2>
+                            <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><span className="text-2xl leading-none">&times;</span></button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto custom-scroll border border-slate-200 rounded-lg p-2 bg-slate-50 font-mono text-sm mb-4">
+                            {groupedMoves.map((turn, idx) => (
+                                <div key={idx} className={`flex py-1 px-2 ${idx % 2 === 0 ? 'bg-white' : 'bg-transparent'} border-b border-slate-100 last:border-0`}>
+                                    <span className="text-slate-400 w-8 text-right pr-2 select-none">{turn.turnNumber}.</span>
+                                    <div className="flex-1 grid grid-cols-2 gap-4">
+                                        <span className="text-red-700">
+                                            {formatMove(turn.red)}
+                                        </span>
+                                        <span className="text-blue-700">
+                                            {turn.blue && ` : ${formatMove(turn.blue)}`}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={copyToClipboard} className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold flex justify-center items-center gap-2">
+                                <Copy className="w-4 h-4"/> Copy Record
+                            </button>
+                            <button onClick={onClose} className="flex-1 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-semibold">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Stats Modal ---
+        const StatsModal = ({ show, scores, stats, onOpen3D, onOpenRecord, onClose }) => {
+            if (!show) return null;
+            
+            const redEff = stats.red.totalLen > 0 ? (scores.red / stats.red.totalLen).toFixed(2) : 0;
+            const blueEff = stats.blue.totalLen > 0 ? (scores.blue / stats.blue.totalLen).toFixed(2) : 0;
+
+            return (
+                <div className="absolute inset-0 z-40 bg-white/95 flex items-center justify-center p-4 fade-in">
+                    <div className="bg-white max-w-lg w-full rounded-2xl shadow-2xl border border-slate-200 p-6">
+                        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-slate-800">
+                            <BarChart3 className="w-6 h-6"/> Game Statistics
+                        </h2>
+                        
+                        <div className="grid grid-cols-2 gap-8 mb-6">
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-red-600 border-b border-red-100 pb-1">Red Player</h3>
+                                <div className="flex justify-between text-sm"><span>Score:</span> <b>{scores.red}</b></div>
+                                <div className="flex justify-between text-sm"><span>Ink Used:</span> <span>{stats.red.totalLen} units</span></div>
+                                <div className="flex justify-between text-sm"><span>Efficiency:</span> <b>{redEff} pts/unit</b></div>
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-blue-600 border-b border-blue-100 pb-1">Blue Player</h3>
+                                <div className="flex justify-between text-sm"><span>Score:</span> <b>{scores.blue}</b></div>
+                                <div className="flex justify-between text-sm"><span>Ink Used:</span> <span>{stats.blue.totalLen} units</span></div>
+                                <div className="flex justify-between text-sm"><span>Efficiency:</span> <b>{blueEff} pts/unit</b></div>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            <div className="flex gap-2">
+                                <button onClick={onOpenRecord} className="flex-1 py-3 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 font-semibold flex justify-center items-center gap-2 transition-colors">
+                                    <FileText className="w-4 h-4"/> Game Record
+                                </button>
+                                <button onClick={onOpen3D} className="flex-1 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex justify-center items-center gap-2 shadow-sm transition-colors">
+                                    <Box className="w-4 h-4"/> View 3D Map
+                                </button>
+                            </div>
+                            
+                            <a 
+                                href="https://www.facebook.com/groups/1747360393316932" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="w-full py-3 bg-[#1877F2] text-white rounded-lg hover:bg-[#166fe5] font-semibold flex justify-center items-center gap-2 shadow-sm transition-colors"
+                            >
+                                <Facebook className="w-5 h-5" /> Share to Community
+                            </a>
+
+                            <button onClick={onClose} className="w-full py-2 border border-slate-300 rounded-lg hover:bg-slate-50 font-semibold text-slate-600 text-sm transition-colors">
+                                View Board (Screenshot)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 3D Visualization Component ---
+        const ThreeView = ({ heatMap, onClose }) => {
+            const mountRef = useRef(null);
+
+            useEffect(() => {
+                const width = mountRef.current.clientWidth;
+                const height = mountRef.current.clientHeight;
+
+                // Scene Setup
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xf8fafc);
+                
+                // Camera
+                const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+                camera.position.set(0, 25, 25);
+                camera.lookAt(0, 0, 0);
+
+                // Renderer
+                const renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(width, height);
+                renderer.shadowMap.enabled = true;
+                mountRef.current.appendChild(renderer.domElement);
+
+                // Lights
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(ambientLight);
+                
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+                dirLight.position.set(10, 20, 10);
+                dirLight.castShadow = true;
+                scene.add(dirLight);
+
+                // Base Plane
+                const planeGeo = new THREE.PlaneGeometry(20, 20);
+                const planeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
+                const plane = new THREE.Mesh(planeGeo, planeMat);
+                plane.rotation.x = -Math.PI / 2;
+                plane.receiveShadow = true;
+                scene.add(plane);
+
+                // Generate Bars from Heatmap
+                const offset = 9; 
+                
+                for(let r=0; r<18; r++) {
+                    for(let c=0; c<18; c++) {
+                        const cell = heatMap[r][c];
+                        const totalHeight = cell.red + cell.blue;
+                        
+                        if (totalHeight > 0) {
+                            // Determine Color
+                            const redRatio = cell.red / totalHeight;
+                            const color = new THREE.Color().lerpColors(
+                                new THREE.Color(COLORS.blueHex), 
+                                new THREE.Color(COLORS.redHex), 
+                                redRatio
+                            );
+
+                            const h = Math.max(0.1, totalHeight * 0.5);
+                            
+                            const geo = new THREE.BoxGeometry(0.8, h, 0.8);
+                            const mat = new THREE.MeshStandardMaterial({ color: color });
+                            const bar = new THREE.Mesh(geo, mat);
+                            
+                            bar.position.x = c - offset + 0.5;
+                            bar.position.z = r - offset + 0.5;
+                            bar.position.y = h / 2;
+                            
+                            bar.castShadow = true;
+                            bar.receiveShadow = true;
+                            scene.add(bar);
+                        }
+                    }
+                }
+
+                // Animation Loop
+                let frameId;
+                const animate = () => {
+                    frameId = requestAnimationFrame(animate);
+                    scene.rotation.y += 0.002;
+                    renderer.render(scene, camera);
+                };
+                animate();
+
+                // Cleanup
+                return () => {
+                    cancelAnimationFrame(frameId);
+                    if (mountRef.current) {
+                        mountRef.current.removeChild(renderer.domElement);
+                    }
+                };
+            }, [heatMap]);
+
+            return (
+                <div className="absolute inset-0 z-50 bg-white flex flex-col fade-in">
+                    <div className="p-4 bg-slate-900 text-white flex justify-between items-center shadow-md z-10">
+                        <h3 className="font-bold flex items-center gap-2"><Box className="w-5 h-5"/> 3D Score Topography</h3>
+                        <button onClick={onClose} className="px-4 py-1 bg-slate-700 rounded hover:bg-slate-600 transition">Close</button>
+                    </div>
+                    <div ref={mountRef} className="flex-1 w-full h-full cursor-move" />
+                    <div className="p-2 bg-slate-100 text-xs text-center text-slate-500 z-10">
+                        Height = Frequency Scored • Color = Dominant Owner
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Main Game Component ---
+        const GoSquared = () => {
+            // Config
+            const [gameMode, setGameMode] = useState(null); // 'pvp' | 'ai'
+            const [aiLevel, setAiLevel] = useState(3); // 1, 2, or 3
+            const [aiThinking, setAiThinking] = useState(false);
+            const [aiStatus, setAiStatus] = useState('');
+            const [showStats, setShowStats] = useState(false);
+            const [show3D, setShow3D] = useState(false);
+            const [showRules, setShowRules] = useState(false);
+            const [showRecord, setShowRecord] = useState(false);
+
+            // Game State
+            const [turn, setTurn] = useState('red');
+            const [scores, setScores] = useState({ red: 0, blue: 0 });
+            const [segments, setSegments] = useState(new Map());
+            const [moveHistory, setMoveHistory] = useState([]);
+            const [gameOver, setGameOver] = useState(false);
+            const [winner, setWinner] = useState(null);
+            const [winReason, setWinReason] = useState('');
+            
+            // "Lolligag" detection for Level 2: How many consecutive turns have points been available?
+            // Increment on every AI turn start if maxBrutePoints > 0. Reset if maxBrutePoints == 0.
+            const lolligagCounter = useRef(0);
+
+            // Visuals
+            const [animatingSquares, setAnimatingSquares] = useState([]);
+            const [completedSquares, setCompletedSquares] = useState([]); 
+            
+            // Stats & Heatmap
+            const [heatMap, setHeatMap] = useState(() => Array(18).fill().map(() => Array(18).fill().map(() => ({ red: 0, blue: 0 }))));
+            const [stats, setStats] = useState({
+                red: { segments: 0, totalLen: 0, linesByLen: {} },
+                blue: { segments: 0, totalLen: 0, linesByLen: {} }
+            });
+
+            const canvasRef = useRef(null);
+            const containerRef = useRef(null);
+            const interaction = useRef({ isDragging: false, start: null, current: null, valid: false });
+
+            // --- Logic Helpers ---
+            const getSegmentKey = (type, r, c) => `${type},${r},${c}`;
+
+            const isValidMove = useCallback((start, end, currentSegments) => {
+                if (!start || !end) return false;
+                if (start.r < 0 || start.r >= GRID_SIZE || start.c < 0 || start.c >= GRID_SIZE) return false;
+                if (end.r < 0 || end.r >= GRID_SIZE || end.c < 0 || end.c >= GRID_SIZE) return false;
+                if (start.r !== end.r && start.c !== end.c) return false;
+                if (start.r === end.r && start.c === end.c) return false;
+
+                const isHorizontal = start.r === end.r;
+                const r = start.r;
+                const c = start.c;
+                const min = isHorizontal ? Math.min(start.c, end.c) : Math.min(start.r, end.r);
+                const max = isHorizontal ? Math.max(start.c, end.c) : Math.max(start.r, end.r);
+
+                for (let i = min; i < max; i++) {
+                    const key = isHorizontal ? getSegmentKey('h', r, i) : getSegmentKey('v', i, c);
+                    if (currentSegments.has(key)) return false;
+                }
+                return true;
+            }, []);
+
+            const checkSquare = useCallback((r, c, size, currentSegments) => {
+                for (let k = 0; k < size; k++) {
+                    if (!currentSegments.has(getSegmentKey('h', r, c + k))) return false;
+                    if (!currentSegments.has(getSegmentKey('h', r + size, c + k))) return false;
+                    if (!currentSegments.has(getSegmentKey('v', r + k, c))) return false;
+                    if (!currentSegments.has(getSegmentKey('v', r + k, c + size))) return false;
+                }
+                for (let row = r + 1; row < r + size; row++) {
+                    for (let col = c; col < c + size; col++) {
+                        if (currentSegments.has(getSegmentKey('h', row, col))) return false;
+                    }
+                }
+                for (let row = r; row < r + size; row++) {
+                    for (let col = c + 1; col < c + size; col++) {
+                        if (currentSegments.has(getSegmentKey('v', row, col))) return false;
+                    }
+                }
+                return true;
+            }, []);
+
+            const updateStats = (player, length) => {
+                setStats(prev => {
+                    const pStats = prev[player];
+                    const newCount = (pStats.linesByLen[length] || 0) + 1;
+                    return {
+                        ...prev,
+                        [player]: {
+                            ...pStats,
+                            segments: pStats.segments + length,
+                            totalLen: pStats.totalLen + length,
+                            linesByLen: { ...pStats.linesByLen, [length]: newCount }
+                        }
+                    };
+                });
+            };
+
+            const updateHeatMap = (squares) => {
+                setHeatMap(prev => {
+                    const next = prev.map(row => row.map(cell => ({...cell})));
+                    squares.forEach(sq => {
+                        for(let r = sq.r; r < sq.r + sq.size; r++) {
+                            for(let c = sq.c; c < sq.c + sq.size; c++) {
+                                if (r < 18 && c < 18) {
+                                    if (sq.player === 'red') next[r][c].red += 1;
+                                    else next[r][c].blue += 1;
+                                }
+                            }
+                        }
+                    });
+                    return next;
+                });
+            };
+
+            // --- Move Execution ---
+            const processMove = (start, end) => {
+                const isHorizontal = start.r === end.r;
+                const fixed = isHorizontal ? start.r : start.c;
+                const min = isHorizontal ? Math.min(start.c, end.c) : Math.min(start.r, end.r);
+                const max = isHorizontal ? Math.max(start.c, end.c) : Math.max(start.r, end.r);
+                const length = max - min;
+
+                updateStats(turn, length);
+
+                const newSegments = new Map(segments);
+                const segmentsAdded = [];
+
+                for (let i = min; i < max; i++) {
+                    const key = isHorizontal ? getSegmentKey('h', fixed, i) : getSegmentKey('v', i, fixed);
+                    newSegments.set(key, turn);
+                    segmentsAdded.push({ type: isHorizontal ? 'h' : 'v', r: isHorizontal ? fixed : i, c: isHorizontal ? i : fixed });
+                }
+
+                const newScores = [];
+                const scoredHashes = new Set();
+
+                segmentsAdded.forEach(seg => {
+                    for (let k = 1; k < GRID_SIZE; k++) {
+                        const checkOrigins = [];
+                        if (seg.type === 'h') {
+                            const r = seg.r; const c = seg.c;
+                            for (let offset = 0; offset < k; offset++) {
+                                checkOrigins.push({ r: r, c: c - offset, size: k });
+                                checkOrigins.push({ r: r - k, c: c - offset, size: k });
+                            }
+                        } else {
+                            const r = seg.r; const c = seg.c;
+                            for (let offset = 0; offset < k; offset++) {
+                                checkOrigins.push({ r: r - offset, c: c, size: k });
+                                checkOrigins.push({ r: r - offset, c: c - k, size: k });
+                            }
+                        }
+
+                        checkOrigins.forEach(origin => {
+                            if (origin.r < 0 || origin.c < 0 || origin.r + origin.size >= GRID_SIZE || origin.c + origin.size >= GRID_SIZE) return;
+                            const hash = `${origin.r},${origin.c},${origin.size}`;
+                            if (scoredHashes.has(hash)) return;
+
+                            if (checkSquare(origin.r, origin.c, origin.size, newSegments)) {
+                                newScores.push({ ...origin, player: turn });
+                                scoredHashes.add(hash);
+                            }
+                        });
+                    }
+                });
+
+                let points = 0;
+                newScores.forEach(sq => { points += sq.size * sq.size; });
+
+                setScores(prev => ({ ...prev, [turn]: prev[turn] + points }));
+                
+                // Record Move History
+                setMoveHistory(prev => [...prev, {
+                    player: turn,
+                    start: { r: start.r, c: start.c },
+                    end: { r: end.r, c: end.c },
+                    points: points
+                }]);
+
+                if (newScores.length > 0) {
+                    const now = Date.now();
+                    const newAnims = newScores.map(s => ({ ...s, timestamp: now }));
+                    setAnimatingSquares(prev => [...prev, ...newAnims]);
+                    setCompletedSquares(prev => [...prev, ...newScores]);
+                    updateHeatMap(newScores);
+                }
+
+                setSegments(newSegments);
+                
+                if (newSegments.size >= 684) {
+                    setGameOver(true);
+                    const finalRed = scores.red + (turn === 'red' ? points : 0);
+                    const finalBlue = scores.blue + (turn === 'blue' ? points : 0);
+                    const diff = Math.abs(finalRed - finalBlue);
+                    
+                    if (diff <= DRAW_MARGIN) {
+                        setWinner('draw');
+                        setWinReason(`Margin ${diff} ≤ ${DRAW_MARGIN}`);
+                    } else {
+                        if (finalRed > finalBlue) {
+                            setWinner('red');
+                            setWinReason(`Won by ${diff} points`);
+                        } else {
+                            setWinner('blue');
+                            setWinReason(`Won by ${diff} points`);
+                        }
+                    }
+                    setShowStats(true);
+                } else {
+                    setTurn(turn === 'red' ? 'blue' : 'red');
+                }
+            };
+
+            // --- AI Logic ---
+            const makeAiMove = useCallback((level) => {
+                // 0. Brute Force Search (The "Feast" Detector)
+                let bestBruteMove = null;
+                let maxBrutePoints = 0;
+
+                const getPointsForMove = (start, end) => {
+                    const isHorizontal = start.r === end.r;
+                    const fixed = isHorizontal ? start.r : start.c;
+                    const min = isHorizontal ? Math.min(start.c, end.c) : Math.min(start.r, end.r);
+                    const max = isHorizontal ? Math.max(start.c, end.c) : Math.max(start.r, end.r);
+                    
+                    let points = 0;
+                    const hypotheticalKeys = new Set();
+                    
+                    for(let i=min; i<max; i++) {
+                        hypotheticalKeys.add(isHorizontal ? getSegmentKey('h', fixed, i) : getSegmentKey('v', i, fixed));
+                    }
+
+                    for(let i=min; i<max; i++) {
+                        const r = isHorizontal ? fixed : i;
+                        const c = isHorizontal ? i : fixed;
+                        const type = isHorizontal ? 'h' : 'v';
+
+                        for (let k = 1; k < GRID_SIZE; k++) {
+                            const checkOrigins = [];
+                            if (type === 'h') {
+                                for (let offset = 0; offset < k; offset++) {
+                                    checkOrigins.push({ r: r, c: c - offset, size: k });
+                                    checkOrigins.push({ r: r - k, c: c - offset, size: k });
+                                }
+                            } else {
+                                for (let offset = 0; offset < k; offset++) {
+                                    checkOrigins.push({ r: r - offset, c: c, size: k });
+                                    checkOrigins.push({ r: r - offset, c: c - k, size: k });
+                                }
+                            }
+
+                            checkOrigins.forEach(origin => {
+                                if (origin.r < 0 || origin.c < 0 || origin.r + origin.size >= GRID_SIZE || origin.c + origin.size >= GRID_SIZE) return;
+                                
+                                let borderComplete = true;
+                                for(let s=0; s<origin.size; s++) {
+                                    const h1 = getSegmentKey('h', origin.r, origin.c + s);
+                                    const h2 = getSegmentKey('h', origin.r + origin.size, origin.c + s);
+                                    const v1 = getSegmentKey('v', origin.r + s, origin.c);
+                                    const v2 = getSegmentKey('v', origin.r + s, origin.c + origin.size);
+                                    
+                                    if (!segments.has(h1) && !hypotheticalKeys.has(h1)) { borderComplete = false; break; }
+                                    if (!segments.has(h2) && !hypotheticalKeys.has(h2)) { borderComplete = false; break; }
+                                    if (!segments.has(v1) && !hypotheticalKeys.has(v1)) { borderComplete = false; break; }
+                                    if (!segments.has(v2) && !hypotheticalKeys.has(v2)) { borderComplete = false; break; }
+                                }
+                                
+                                if (borderComplete) {
+                                    let interiorClean = true;
+                                    for (let ir = origin.r + 1; ir < origin.r + origin.size; ir++) {
+                                        for(let ic = origin.c; ic < origin.c + origin.size; ic++) {
+                                            if (segments.has(getSegmentKey('h', ir, ic))) { interiorClean = false; break; }
+                                        }
+                                        if (!interiorClean) break;
+                                    }
+                                    if (interiorClean) {
+                                        for (let ir = origin.r; ir < origin.r + origin.size; ir++) {
+                                            for(let ic = origin.c + 1; ic < origin.c + origin.size; ic++) {
+                                                if (segments.has(getSegmentKey('v', ir, ic))) { interiorClean = false; break; }
+                                            }
+                                            if (!interiorClean) break;
+                                        }
+                                    }
+                                    
+                                    if (interiorClean) {
+                                        points += origin.size * origin.size;
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    return points;
+                };
+
+                const checkBruteForce = () => {
+                    for(let r=0; r<GRID_SIZE; r++) {
+                        for(let c=0; c<GRID_SIZE; c++) {
+                            for(let len=1; c+len < GRID_SIZE; len++) {
+                                if (segments.has(getSegmentKey('h', r, c + len - 1))) break; 
+                                const pts = getPointsForMove({r,c}, {r, c:c+len});
+                                if (pts > maxBrutePoints) {
+                                    maxBrutePoints = pts;
+                                    bestBruteMove = { start: {r,c}, end: {r, c:c+len} };
+                                }
+                            }
+                            for(let len=1; r+len < GRID_SIZE; len++) {
+                                if (segments.has(getSegmentKey('v', r + len - 1, c))) break;
+                                const pts = getPointsForMove({r,c}, {r:r+len, c});
+                                if (pts > maxBrutePoints) {
+                                    maxBrutePoints = pts;
+                                    bestBruteMove = { start: {r,c}, end: {r:r+len, c} };
+                                }
+                            }
+                        }
+                    }
+                };
+
+                checkBruteForce();
+
+                // Lolligag Logic (Update Counter)
+                if (maxBrutePoints > 0) lolligagCounter.current++;
+                else lolligagCounter.current = 0;
+
+                // --- Level Logic Decision Tree ---
+                let useBest = false;
+                let useWeak = false;
+
+                if (level === 3) {
+                    useBest = true; // Glutton: Always feast
+                } else if (level === 1) { // Mentor
+                    const diff = scores.red - scores.blue; // Human - AI
+                    if (diff > 15) {
+                        useBest = true; // Human too far ahead, catch up
+                    } else if (diff >= 1) {
+                        useWeak = true; // Human in sweet spot (1-15 ahead), relax
+                    } else {
+                        useWeak = true; // Human behind, relax
+                    }
+                } else if (level === 2) { // Rival
+                    const diff = scores.blue - scores.red; // AI - Human
+                    if (diff > 15) {
+                        // AI too far ahead. Check lolligag.
+                        if (lolligagCounter.current > 2) {
+                            useBest = true; // Punish lolligaging
+                            setAiStatus("Snatched! (Lolligag)");
+                        } else {
+                            useWeak = true; // Let human catch up
+                        }
+                    } else if (diff >= 1) {
+                        useBest = true; // In sweet spot, maintain lead
+                    } else {
+                        useBest = true; // AI losing, fight back
+                    }
+                }
+
+                // Execute Feast if decided
+                if (useBest && maxBrutePoints > 0 && bestBruteMove) {
+                    if (!aiStatus) setAiStatus(`Feast! ${maxBrutePoints}pts`);
+                    processMove(bestBruteMove.start, bestBruteMove.end);
+                    setAiThinking(false);
+                    return;
+                }
+
+                // If forced to use weak, we skip the rest of the high-IQ checks (Sniper)
+                // and go straight to Random, or pick a non-scoring move if possible.
+                if (useWeak) {
+                    setAiStatus("Drifting...");
+                    // Try to find a move that scores 0
+                    const weakCandidates = [];
+                    for(let i=0; i<60; i++) {
+                        const r = Math.floor(Math.random() * GRID_SIZE);
+                        const c = Math.floor(Math.random() * GRID_SIZE);
+                        const isH = Math.random() > 0.5;
+                        const maxLen = isH ? GRID_SIZE - 1 - c : GRID_SIZE - 1 - r;
+                        if (maxLen > 0) {
+                            const len = Math.floor(Math.random() * Math.min(6, maxLen)) + 1;
+                            const start = {r, c};
+                            const end = isH ? {r, c: c+len} : {r: r+len, c};
+                            if (isValidMove(start, end, segments)) {
+                                if (getPointsForMove(start, end) === 0) {
+                                    processMove(start, end);
+                                    setAiThinking(false);
+                                    return;
+                                }
+                                weakCandidates.push({start, end});
+                            }
+                        }
+                    }
+                    // If no 0-point moves found easily, just pick random valid
+                    if (weakCandidates.length > 0) {
+                        const pick = weakCandidates[0];
+                        processMove(pick.start, pick.end);
+                        setAiThinking(false);
+                        return;
+                    }
+                }
+
+                // --- Standard / Fallback Logic (Sniper, Spoiler, Random) ---
+                // Only runs if we didn't force a Weak move and didn't trigger a Feast.
+                // (Basically Level 3 Fallback or Level 1/2 "Best" fallback if no feast available)
+
+                const candidateMoves = [];
+                for (let size = 1; size < GRID_SIZE; size++) {
+                    for (let r = 0; r <= GRID_SIZE - 1 - size; r++) {
+                        for (let c = 0; c <= GRID_SIZE - 1 - size; c++) {
+                            let interiorClean = true;
+                            for (let ir = r + 1; ir < r + size; ir++) {
+                                for(let ic = c; ic < c + size; ic++) {
+                                    if (segments.has(getSegmentKey('h', ir, ic))) { interiorClean = false; break; }
+                                }
+                                if (!interiorClean) break;
+                            }
+                            if (interiorClean) {
+                                for (let ir = r; ir < r + size; ir++) {
+                                    for(let ic = c + 1; ic < c + size; ic++) {
+                                        if (segments.has(getSegmentKey('v', ir, ic))) { interiorClean = false; break; }
+                                    }
+                                    if (!interiorClean) break;
+                                }
+                            }
+                            if (!interiorClean) continue;
+
+                            const borders = { top: [], bottom: [], left: [], right: [] };
+                            for(let k=0; k<size; k++) if(!segments.has(getSegmentKey('h', r, c+k))) borders.top.push(k);
+                            for(let k=0; k<size; k++) if(!segments.has(getSegmentKey('h', r+size, c+k))) borders.bottom.push(k);
+                            for(let k=0; k<size; k++) if(!segments.has(getSegmentKey('v', r+k, c))) borders.left.push(k);
+                            for(let k=0; k<size; k++) if(!segments.has(getSegmentKey('v', r+k, c+size))) borders.right.push(k);
+
+                            const missing = borders.top.length + borders.bottom.length + borders.left.length + borders.right.length;
+                            if (missing > 0) {
+                                let move = null;
+                                if (borders.top.length === missing) move = {type:'h', r, c, segs: borders.top};
+                                else if (borders.bottom.length === missing) move = {type:'h', r: r+size, c, segs: borders.bottom};
+                                else if (borders.left.length === missing) move = {type:'v', r, c, segs: borders.left};
+                                else if (borders.right.length === missing) move = {type:'v', r, c: c+size, segs: borders.right};
+
+                                if (move) {
+                                    move.segs.sort((a,b)=>a-b);
+                                    let cont = true;
+                                    for(let i=0; i<move.segs.length-1; i++) if(move.segs[i+1] !== move.segs[i]+1) cont=false;
+                                    if (cont) {
+                                        const startIdx = move.segs[0];
+                                        const endIdx = move.segs[move.segs.length-1] + 1;
+                                        const start = move.type === 'h' ? {r: move.r, c: move.c+startIdx} : {r: move.r+startIdx, c: move.c};
+                                        const end = move.type === 'h' ? {r: move.r, c: move.c+endIdx} : {r: move.r+endIdx, c: move.c};
+                                        candidateMoves.push({start, end, points: size*size});
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                candidateMoves.sort((a,b) => b.points - a.points);
+                if (candidateMoves.length > 0) {
+                    setAiStatus(`Sniper: ${candidateMoves[0].points}pts`);
+                    processMove(candidateMoves[0].start, candidateMoves[0].end);
+                    setAiThinking(false);
+                    return;
+                }
+
+                // 2. Spoiler 
+                let spoilerMove = null;
+                let maxThreat = 0;
+                for (let size = 4; size < 8; size++) {
+                   for (let r = 0; r <= GRID_SIZE - 1 - size; r++) {
+                    for (let c = 0; c <= GRID_SIZE - 1 - size; c++) {
+                      let interiorClean = true;
+                      if (segments.has(getSegmentKey('h', r + Math.floor(size/2), c + Math.floor(size/2)))) interiorClean = false;
+                      if (!interiorClean) continue;
+                      let builtSegments = 0;
+                      for(let k=0; k<size; k++) if(segments.has(getSegmentKey('h', r, c+k))) builtSegments++;
+                      for(let k=0; k<size; k++) if(segments.has(getSegmentKey('h', r+size, c+k))) builtSegments++;
+                      for(let k=0; k<size; k++) if(segments.has(getSegmentKey('v', r+k, c))) builtSegments++;
+                      for(let k=0; k<size; k++) if(segments.has(getSegmentKey('v', r+k, c+size))) builtSegments++;
+                      if (builtSegments > size * 1.5) {
+                         if (builtSegments > maxThreat) {
+                            maxThreat = builtSegments;
+                            spoilerMove = {
+                              start: { r: r + Math.floor(size/2), c: c + Math.floor(size/2) },
+                              end: { r: r + Math.floor(size/2), c: c + Math.floor(size/2) + 1 }
+                            };
+                         }
+                      }
+                    }
+                   }
+                }
+                if (spoilerMove && Math.random() > 0.3) {
+                  setAiStatus('Deploying Spoiler');
+                  processMove(spoilerMove.start, spoilerMove.end);
+                  setAiThinking(false);
+                  return;
+                }
+
+                // 3. Random Valid
+                const randoms = [];
+                for(let i=0; i<50; i++) {
+                    const r = Math.floor(Math.random() * GRID_SIZE);
+                    const c = Math.floor(Math.random() * GRID_SIZE);
+                    const isH = Math.random() > 0.5;
+                    const maxLen = isH ? GRID_SIZE - 1 - c : GRID_SIZE - 1 - r;
+                    if (maxLen > 0) {
+                        const len = Math.floor(Math.random() * Math.min(6, maxLen)) + 1;
+                        const start = {r, c};
+                        const end = isH ? {r, c: c+len} : {r: r+len, c};
+                        if (isValidMove(start, end, segments)) randoms.push({start, end});
+                    }
+                }
+
+                if (randoms.length > 0) {
+                    setAiStatus('Developing...');
+                    const pick = randoms[Math.floor(Math.random() * randoms.length)];
+                    processMove(pick.start, pick.end);
+                } else {
+                    setAiStatus('Filling...');
+                    for(let r=0; r<GRID_SIZE; r++) {
+                        for(let c=0; c<GRID_SIZE; c++) {
+                            if (c < 18 && !segments.has(getSegmentKey('h',r,c))) { processMove({r,c}, {r,c:c+1}); setAiThinking(false); return; }
+                            if (r < 18 && !segments.has(getSegmentKey('v',r,c))) { processMove({r,c}, {r:r+1,c}); setAiThinking(false); return; }
+                        }
+                    }
+                }
+                setAiThinking(false);
+
+            }, [segments, isValidMove, scores]);
+
+            const startGame = (mode, level = 3) => {
+                setGameMode(mode);
+                setAiLevel(level);
+                lolligagCounter.current = 0; // Reset streak
+            };
+
+            useEffect(() => {
+                if (gameMode === 'ai' && turn === 'blue' && !gameOver) {
+                    setAiThinking(true);
+                    setAiStatus('Thinking...');
+                    const timer = setTimeout(() => makeAiMove(aiLevel), 600);
+                    return () => clearTimeout(timer);
+                }
+            }, [turn, gameMode, gameOver, makeAiMove, aiLevel]);
+
+            // --- Rendering ---
+            const drawBoard = (ctx, width, height) => {
+                const dpr = window.devicePixelRatio || 1;
+                const innerWidth = width - PADDING * 2;
+                const spacing = innerWidth / (GRID_SIZE - 1);
+
+                ctx.clearRect(0, 0, width, height);
+                ctx.save();
+                ctx.translate(PADDING, PADDING);
+
+                completedSquares.forEach(sq => {
+                    ctx.fillStyle = sq.player === 'red' ? COLORS.redTint : COLORS.blueTint;
+                    ctx.fillRect(sq.c * spacing, sq.r * spacing, sq.size * spacing, sq.size * spacing);
+                });
+
+                const now = Date.now();
+                const activeAnims = animatingSquares.filter(a => now - a.timestamp < 1000);
+                activeAnims.forEach(anim => {
+                    const age = now - anim.timestamp;
+                    const alpha = Math.max(0, 1 - age / 1000) * 0.6;
+                    ctx.fillStyle = anim.player === 'red' ? `rgba(239, 68, 68, ${alpha})` : `rgba(59, 130, 246, ${alpha})`;
+                    ctx.fillRect(anim.c * spacing, anim.r * spacing, anim.size * spacing, anim.size * spacing);
+                });
+
+                ctx.fillStyle = COLORS.grid;
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        ctx.beginPath();
+                        ctx.arc(c * spacing, r * spacing, 1.2 * dpr, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                ctx.lineCap = 'round';
+                ctx.lineWidth = 2.4 * dpr;
+                segments.forEach((player, key) => {
+                    const [type, r, c] = key.split(',');
+                    const row = parseInt(r); const col = parseInt(c);
+                    ctx.strokeStyle = player === 'red' ? COLORS.red : COLORS.blue;
+                    ctx.beginPath();
+                    if (type === 'h') { ctx.moveTo(col * spacing, row * spacing); ctx.lineTo((col + 1) * spacing, row * spacing); }
+                    else { ctx.moveTo(col * spacing, row * spacing); ctx.lineTo(col * spacing, (row + 1) * spacing); }
+                    ctx.stroke();
+                });
+
+                const { isDragging, start, current, valid } = interaction.current;
+                if (isDragging && start && current) {
+                    ctx.strokeStyle = valid ? (turn === 'red' ? COLORS.red : COLORS.blue) : COLORS.hoverInvalid;
+                    ctx.globalAlpha = valid ? 0.6 : 1;
+                    ctx.beginPath();
+                    ctx.moveTo(start.c * spacing, start.r * spacing);
+                    ctx.lineTo(current.c * spacing, current.r * spacing);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                    
+                    ctx.fillStyle = valid ? (turn === 'red' ? COLORS.red : COLORS.blue) : 'red';
+                    ctx.beginPath();
+                    ctx.arc(start.c * spacing, start.r * spacing, 3 * dpr, 0, Math.PI * 2);
+                    ctx.arc(current.c * spacing, current.r * spacing, 3 * dpr, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            };
+
+            useEffect(() => {
+                let frameId;
+                const render = () => {
+                    const canvas = canvasRef.current;
+                    const container = containerRef.current;
+                    if (canvas && container) {
+                        const dpr = window.devicePixelRatio || 1;
+                        const rect = container.getBoundingClientRect();
+                        const size = Math.min(rect.width, rect.height || 600);
+                        if (canvas.width !== size * dpr || canvas.height !== size * dpr) {
+                            canvas.width = size * dpr; canvas.height = size * dpr;
+                            canvas.style.width = `${size}px`; canvas.style.height = `${size}px`;
+                            canvas.getContext('2d').scale(dpr, dpr);
+                        }
+                        const ctx = canvas.getContext('2d');
+                        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
+                        drawBoard(ctx, size, size);
+                    }
+                    frameId = requestAnimationFrame(render);
+                };
+                render();
+                return () => cancelAnimationFrame(frameId);
+            }, [segments, animatingSquares, completedSquares]);
+
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    const now = Date.now();
+                    setAnimatingSquares(prev => prev.filter(a => now - a.timestamp < 1000));
+                }, 500);
+                return () => clearInterval(interval);
+            }, []);
+
+            const getGridCoords = (e) => {
+                const canvas = canvasRef.current;
+                if (!canvas) return null;
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left - PADDING;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top - PADDING;
+                const innerWidth = rect.width - PADDING * 2;
+                const spacing = innerWidth / (GRID_SIZE - 1);
+                const c = Math.round(x / spacing);
+                const r = Math.round(y / spacing);
+                return { r: Math.max(0, Math.min(GRID_SIZE - 1, r)), c: Math.max(0, Math.min(GRID_SIZE - 1, c)) };
+            };
+
+            const handlePointerDown = (e) => {
+                if (gameOver || (gameMode === 'ai' && turn === 'blue')) return;
+                const coords = getGridCoords(e);
+                if (!coords) return;
+                interaction.current = { isDragging: true, start: coords, current: coords, valid: false };
+            };
+
+            const handlePointerMove = (e) => {
+                if (!interaction.current.isDragging || gameOver) return;
+                const coords = getGridCoords(e);
+                if (!coords) return;
+                const start = interaction.current.start;
+                const dr = Math.abs(coords.r - start.r); const dc = Math.abs(coords.c - start.c);
+                let current = { ...coords };
+                if (dr > dc) current.c = start.c; else current.r = start.r;
+                const isValid = isValidMove(start, current, segments);
+                interaction.current.current = current;
+                interaction.current.valid = isValid;
+            };
+
+            const handlePointerUp = () => {
+                if (interaction.current.isDragging && interaction.current.valid && !gameOver) {
+                    processMove(interaction.current.start, interaction.current.current);
+                }
+                interaction.current = { isDragging: false, start: null, current: null, valid: false };
+            };
+
+            const resetGame = () => {
+                setSegments(new Map()); setScores({ red: 0, blue: 0 }); setTurn('red');
+                setMoveHistory([]);
+                setGameOver(false); setWinner(null); setWinReason('');
+                setAnimatingSquares([]); setCompletedSquares([]);
+                setHeatMap(Array(18).fill().map(() => Array(18).fill().map(() => ({ red: 0, blue: 0 }))));
+                setStats({ red: { segments: 0, totalLen: 0, linesByLen: {} }, blue: { segments: 0, totalLen: 0, linesByLen: {} } });
+                setGameMode(null); setAiStatus(''); setShowStats(false); setShow3D(false); setShowRules(false); setShowRecord(false);
+                interaction.current = { isDragging: false, start: null, current: null, valid: false };
+            };
+
+            if (gameMode === null) {
+                return (
+                    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-sans text-slate-800">
+                        <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-md w-full text-center space-y-8">
+                            <div>
+                                <div className="flex justify-center mb-4"><Trophy className="w-16 h-16 text-yellow-500" /></div>
+                                <h1 className="text-4xl font-bold text-slate-900 mb-2">Go Squared</h1>
+                                <p className="text-slate-500">Tournament Edition</p>
+                            </div>
+                            <div className="space-y-4">
+                                <button onClick={() => startGame('pvp')} className="w-full flex items-center justify-center gap-3 p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all group">
+                                    <User className="w-6 h-6 text-slate-400 group-hover:text-red-500" />
+                                    <div className="text-left"><div className="font-bold text-lg group-hover:text-red-700">Human vs. Human</div></div>
+                                </button>
+                                
+                                <div className="space-y-2">
+                                    <div className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Select AI Difficulty</div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button onClick={() => startGame('ai', 1)} className="p-3 border-2 border-green-200 bg-green-50 rounded-lg hover:bg-green-100 hover:border-green-300 transition-colors text-center">
+                                            <div className="font-bold text-green-700">Lvl 1</div>
+                                            <div className="text-xs text-green-600">Mentor</div>
+                                        </button>
+                                        <button onClick={() => startGame('ai', 2)} className="p-3 border-2 border-yellow-200 bg-yellow-50 rounded-lg hover:bg-yellow-100 hover:border-yellow-300 transition-colors text-center">
+                                            <div className="font-bold text-yellow-700">Lvl 2</div>
+                                            <div className="text-xs text-yellow-600">Rival</div>
+                                        </button>
+                                        <button onClick={() => startGame('ai', 3)} className="p-3 border-2 border-red-200 bg-red-50 rounded-lg hover:bg-red-100 hover:border-red-300 transition-colors text-center">
+                                            <div className="font-bold text-red-700">Lvl 3</div>
+                                            <div className="text-xs text-red-600">Glutton</div>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Rules and Support Buttons */}
+                            <div className="flex gap-3 pt-4 border-t border-slate-100">
+                                <button onClick={() => setShowRules(true)} className="flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold transition-colors">
+                                    <BookOpen className="w-4 h-4"/> Rules
+                                </button>
+                                <a href="https://buy.stripe.com/dRm9AN8IgcrieVbbOT9EI00" target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold transition-colors">
+                                    <Gift className="w-4 h-4"/> Support
+                                </a>
+                            </div>
+                        </div>
+                        {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-slate-50 flex flex-col items-center font-sans text-slate-800 selection:bg-none touch-none overflow-hidden relative">
+                    <div className="w-full max-w-2xl px-4 pt-6 pb-2 flex flex-col gap-4 z-10">
+                        <div className="flex justify-between items-center">
+                            <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                                Go Squared 
+                                <span className={`text-xs px-2 py-1 rounded-md font-normal border ${
+                                    gameMode === 'ai' 
+                                        ? aiLevel === 1 ? 'bg-green-100 text-green-700 border-green-200'
+                                        : aiLevel === 2 ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                        : 'bg-red-100 text-red-700 border-red-200'
+                                        : 'bg-slate-200 text-slate-500 border-slate-300'
+                                }`}>
+                                    {gameMode === 'ai' ? (aiLevel === 1 ? 'Mentor' : aiLevel === 2 ? 'Rival' : 'Glutton') : 'PVP'}
+                                </span>
+                            </h1>
+                            <div className="flex gap-2">
+                                {gameOver && !showStats && <button onClick={() => setShowStats(true)} className="p-2 bg-white border border-slate-200 rounded-full hover:bg-slate-100"><BarChart3 className="w-5 h-5 text-indigo-600" /></button>}
+                                <button onClick={resetGame} className="p-2 bg-white border border-slate-200 rounded-full hover:bg-slate-100"><RefreshCw className="w-5 h-5 text-slate-600" /></button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className={`relative overflow-hidden rounded-xl p-4 transition-all duration-300 border-2 ${turn === 'red' ? 'bg-white border-red-500 shadow-lg scale-105 z-10' : 'bg-slate-100 border-transparent opacity-80'}`}>
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-bl-full -mr-4 -mt-4 z-0"></div>
+                                <div className="relative z-10">
+                                    <div className="text-sm font-semibold uppercase tracking-wider text-red-600 flex items-center gap-2"><User className="w-4 h-4" /> You (Red)</div>
+                                    <div className="text-4xl font-black text-slate-800">{scores.red}</div>
+                                </div>
+                            </div>
+                            <div className={`relative overflow-hidden rounded-xl p-4 transition-all duration-300 border-2 ${turn === 'blue' ? 'bg-white border-blue-500 shadow-lg scale-105 z-10' : 'bg-slate-100 border-transparent opacity-80'}`}>
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 z-0"></div>
+                                <div className="relative z-10">
+                                    <div className="text-sm font-semibold uppercase tracking-wider text-blue-600 flex items-center gap-2">
+                                        {gameMode === 'ai' ? <Cpu className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                                        {gameMode === 'ai' ? (aiLevel === 1 ? 'AI (Mentor)' : aiLevel === 2 ? 'AI (Rival)' : 'AI (Glutton)') : 'Blue'}
+                                        {aiThinking && <span className="ml-2 animate-pulse text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1"><Zap className="w-3 h-3" /> Thinking</span>}
+                                    </div>
+                                    <div className="text-4xl font-black text-slate-800">{scores.blue}</div>
+                                    {gameMode === 'ai' && aiStatus && <div className="text-xs text-slate-500 mt-1 italic animate-in fade-in">{aiStatus}</div>}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="w-full flex justify-center items-center gap-2 text-xs text-slate-400 bg-white p-2 rounded-full border border-slate-100 shadow-sm">
+                            <Scale className="w-3 h-3" /> Rule: Must win by &gt; {DRAW_MARGIN} points. Current Margin: <span className={`font-bold ${Math.abs(scores.red - scores.blue) <= DRAW_MARGIN ? 'text-yellow-600' : 'text-green-600'}`}>{Math.abs(scores.red - scores.blue)}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 w-full max-w-[600px] p-4 flex flex-col justify-center z-0">
+                        <div ref={containerRef} className="relative w-full aspect-square bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden cursor-crosshair touch-none">
+                            <canvas
+                                ref={canvasRef}
+                                onPointerDown={handlePointerDown}
+                                onPointerMove={handlePointerMove}
+                                onPointerUp={handlePointerUp}
+                                onPointerLeave={handlePointerUp}
+                                className={`w-full h-full touch-none ${aiThinking ? 'cursor-wait' : ''}`}
+                            />
+                            {gameOver && !showStats && !show3D && !showRecord && (
+                                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-20 animate-in fade-in">
+                                    <div className="bg-white p-8 rounded-2xl shadow-2xl border text-center">
+                                        <h2 className="text-3xl font-bold mb-2">{winner === 'red' ? 'Red Wins!' : winner === 'blue' ? 'Blue Wins!' : 'Draw!'}</h2>
+                                        <button onClick={() => setShowStats(true)} className="mt-4 px-6 py-2 bg-slate-900 text-white rounded-lg">View Stats</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <StatsModal 
+                        show={showStats} 
+                        scores={scores} 
+                        stats={stats} 
+                        onOpen3D={() => setShow3D(true)} 
+                        onOpenRecord={() => setShowRecord(true)}
+                        onClose={() => setShowStats(false)} 
+                    />
+                    {show3D && <ThreeView heatMap={heatMap} onClose={() => setShow3D(false)} />}
+                    {showRecord && <GameRecordModal moves={moveHistory} onClose={() => setShowRecord(false)} />}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<GoSquared />);
+    </script>
+</body>
+</html>
