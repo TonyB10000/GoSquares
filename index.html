@@ -52,9 +52,9 @@
         const Facebook = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>;
         const FileText = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>;
         const Copy = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
+        const Camera = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>;
 
         // --- Constants ---
-        const GRID_SIZE = 19;
         const PADDING = 30;
         const DRAW_MARGIN = 10;
         
@@ -69,9 +69,9 @@
             blueTint: 'rgba(59, 130, 246, 0.1)',
         };
 
-        const toNotation = (p) => {
+        const toNotation = (p, gridSize) => {
             const file = String.fromCharCode(65 + p.c); 
-            const rank = 19 - p.r;
+            const rank = gridSize - p.r;
             return `${file}${rank}`;
         };
 
@@ -105,6 +105,12 @@
                                 <div className="bg-slate-100 p-2 rounded">5x5 = 25 pts</div>
                                 <div className="bg-slate-100 p-2 rounded">10x10 = 100 pts</div>
                             </div>
+                        </section>
+
+                        <section>
+                            <h3 className="font-bold text-slate-900 text-red-600 flex items-center gap-1"><Zap className="w-4 h-4"/> Critical Rule: The Void</h3>
+                            <p className="text-sm">A square only counts if its <strong>interior is completely empty</strong>.</p>
+                            <p className="text-sm mt-1">If an opponent draws even a single line inside your box, it is "spoiled" and scores 0 points.</p>
                         </section>
 
                         <section>
@@ -142,7 +148,7 @@
         );
 
         // --- Game Record Modal ---
-        const GameRecordModal = ({ moves, onClose }) => {
+        const GameRecordModal = ({ moves, gridSize, onClose }) => {
             const groupedMoves = [];
             for (let i = 0; i < moves.length; i += 2) {
                 groupedMoves.push({
@@ -154,7 +160,7 @@
 
             const formatMove = (m) => {
                 if (!m) return '';
-                const moveStr = `${toNotation(m.start)} - ${toNotation(m.end)}`;
+                const moveStr = `${toNotation(m.start, gridSize)} - ${toNotation(m.end, gridSize)}`;
                 const pts = m.points > 0 ? ` (${m.points})` : '';
                 return `${moveStr}${pts}`;
             };
@@ -226,7 +232,7 @@
         };
 
         // --- Stats Modal ---
-        const StatsModal = ({ show, scores, stats, onOpen3D, onOpenRecord, onClose }) => {
+        const StatsModal = ({ show, scores, stats, onOpen3D, onOpenRecord, onViewBoard, onPlayAgain, onClose }) => {
             if (!show) return null;
             
             const redEff = stats.red.totalLen > 0 ? (scores.red / stats.red.totalLen).toFixed(2) : 0;
@@ -235,9 +241,12 @@
             return (
                 <div className="absolute inset-0 z-40 bg-white/95 flex items-center justify-center p-4 fade-in">
                     <div className="bg-white max-w-lg w-full rounded-2xl shadow-2xl border border-slate-200 p-6">
-                        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-slate-800">
-                            <BarChart3 className="w-6 h-6"/> Game Statistics
-                        </h2>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800">
+                                <BarChart3 className="w-6 h-6"/> Game Statistics
+                            </h2>
+                            <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full"><span className="text-2xl leading-none">&times;</span></button>
+                        </div>
                         
                         <div className="grid grid-cols-2 gap-8 mb-6">
                             <div className="space-y-2">
@@ -273,9 +282,14 @@
                                 <Facebook className="w-5 h-5" /> Share to Community
                             </a>
 
-                            <button onClick={onClose} className="w-full py-2 border border-slate-300 rounded-lg hover:bg-slate-50 font-semibold text-slate-600 text-sm transition-colors">
-                                View Board (Screenshot)
-                            </button>
+                            <div className="flex gap-2">
+                                <button onClick={onViewBoard} className="flex-1 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 font-semibold text-slate-600 text-sm flex justify-center items-center gap-2 transition-colors">
+                                    <Camera className="w-4 h-4" /> View Board
+                                </button>
+                                <button onClick={onPlayAgain} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold text-sm flex justify-center items-center gap-2 shadow-sm transition-colors">
+                                    <RefreshCw className="w-4 h-4" /> Play Again
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -283,7 +297,7 @@
         };
 
         // --- 3D Visualization Component ---
-        const ThreeView = ({ heatMap, onClose }) => {
+        const ThreeView = ({ heatMap, gridSize, onClose }) => {
             const mountRef = useRef(null);
 
             useEffect(() => {
@@ -296,7 +310,7 @@
                 
                 // Camera
                 const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-                camera.position.set(0, 25, 25);
+                camera.position.set(0, gridSize * 1.5, gridSize * 1.5);
                 camera.lookAt(0, 0, 0);
 
                 // Renderer
@@ -315,7 +329,7 @@
                 scene.add(dirLight);
 
                 // Base Plane
-                const planeGeo = new THREE.PlaneGeometry(20, 20);
+                const planeGeo = new THREE.PlaneGeometry(gridSize + 2, gridSize + 2);
                 const planeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
                 const plane = new THREE.Mesh(planeGeo, planeMat);
                 plane.rotation.x = -Math.PI / 2;
@@ -323,10 +337,10 @@
                 scene.add(plane);
 
                 // Generate Bars from Heatmap
-                const offset = 9; 
+                const offset = (gridSize - 1) / 2;
                 
-                for(let r=0; r<18; r++) {
-                    for(let c=0; c<18; c++) {
+                for(let r=0; r < gridSize - 1; r++) {
+                    for(let c=0; c < gridSize - 1; c++) {
                         const cell = heatMap[r][c];
                         const totalHeight = cell.red + cell.blue;
                         
@@ -372,7 +386,7 @@
                         mountRef.current.removeChild(renderer.domElement);
                     }
                 };
-            }, [heatMap]);
+            }, [heatMap, gridSize]);
 
             return (
                 <div className="absolute inset-0 z-50 bg-white flex flex-col fade-in">
@@ -388,17 +402,22 @@
             );
         };
 
+        const getInitialHeatMap = (size) => Array(size - 1).fill().map(() => Array(size - 1).fill().map(() => ({ red: 0, blue: 0 })));
+
         // --- Main Game Component ---
         const GoSquared = () => {
             // Config
             const [gameMode, setGameMode] = useState(null); // 'pvp' | 'ai'
             const [aiLevel, setAiLevel] = useState(3); // 1, 2, or 3
+            const [gridSize, setGridSize] = useState(19); // Default board size
+            
             const [aiThinking, setAiThinking] = useState(false);
             const [aiStatus, setAiStatus] = useState('');
             const [showStats, setShowStats] = useState(false);
             const [show3D, setShow3D] = useState(false);
             const [showRules, setShowRules] = useState(false);
             const [showRecord, setShowRecord] = useState(false);
+            const [viewingBoard, setViewingBoard] = useState(false); // Used for screenshot mode
 
             // Game State
             const [turn, setTurn] = useState('red');
@@ -410,7 +429,6 @@
             const [winReason, setWinReason] = useState('');
             
             // "Lolligag" detection for Level 2: How many consecutive turns have points been available?
-            // Increment on every AI turn start if maxBrutePoints > 0. Reset if maxBrutePoints == 0.
             const lolligagCounter = useRef(0);
 
             // Visuals
@@ -418,7 +436,7 @@
             const [completedSquares, setCompletedSquares] = useState([]); 
             
             // Stats & Heatmap
-            const [heatMap, setHeatMap] = useState(() => Array(18).fill().map(() => Array(18).fill().map(() => ({ red: 0, blue: 0 }))));
+            const [heatMap, setHeatMap] = useState(() => getInitialHeatMap(19));
             const [stats, setStats] = useState({
                 red: { segments: 0, totalLen: 0, linesByLen: {} },
                 blue: { segments: 0, totalLen: 0, linesByLen: {} }
@@ -433,8 +451,8 @@
 
             const isValidMove = useCallback((start, end, currentSegments) => {
                 if (!start || !end) return false;
-                if (start.r < 0 || start.r >= GRID_SIZE || start.c < 0 || start.c >= GRID_SIZE) return false;
-                if (end.r < 0 || end.r >= GRID_SIZE || end.c < 0 || end.c >= GRID_SIZE) return false;
+                if (start.r < 0 || start.r >= gridSize || start.c < 0 || start.c >= gridSize) return false;
+                if (end.r < 0 || end.r >= gridSize || end.c < 0 || end.c >= gridSize) return false;
                 if (start.r !== end.r && start.c !== end.c) return false;
                 if (start.r === end.r && start.c === end.c) return false;
 
@@ -449,7 +467,7 @@
                     if (currentSegments.has(key)) return false;
                 }
                 return true;
-            }, []);
+            }, [gridSize]);
 
             const checkSquare = useCallback((r, c, size, currentSegments) => {
                 for (let k = 0; k < size; k++) {
@@ -493,7 +511,7 @@
                     squares.forEach(sq => {
                         for(let r = sq.r; r < sq.r + sq.size; r++) {
                             for(let c = sq.c; c < sq.c + sq.size; c++) {
-                                if (r < 18 && c < 18) {
+                                if (r < gridSize - 1 && c < gridSize - 1) {
                                     if (sq.player === 'red') next[r][c].red += 1;
                                     else next[r][c].blue += 1;
                                 }
@@ -527,7 +545,7 @@
                 const scoredHashes = new Set();
 
                 segmentsAdded.forEach(seg => {
-                    for (let k = 1; k < GRID_SIZE; k++) {
+                    for (let k = 1; k < gridSize; k++) {
                         const checkOrigins = [];
                         if (seg.type === 'h') {
                             const r = seg.r; const c = seg.c;
@@ -544,7 +562,7 @@
                         }
 
                         checkOrigins.forEach(origin => {
-                            if (origin.r < 0 || origin.c < 0 || origin.r + origin.size >= GRID_SIZE || origin.c + origin.size >= GRID_SIZE) return;
+                            if (origin.r < 0 || origin.c < 0 || origin.r + origin.size >= gridSize || origin.c + origin.size >= gridSize) return;
                             const hash = `${origin.r},${origin.c},${origin.size}`;
                             if (scoredHashes.has(hash)) return;
 
@@ -579,7 +597,8 @@
 
                 setSegments(newSegments);
                 
-                if (newSegments.size >= 684) {
+                const MAX_SEGMENTS = (gridSize * (gridSize - 1)) * 2;
+                if (newSegments.size >= MAX_SEGMENTS) {
                     setGameOver(true);
                     const finalRed = scores.red + (turn === 'red' ? points : 0);
                     const finalBlue = scores.blue + (turn === 'blue' ? points : 0);
@@ -597,7 +616,7 @@
                             setWinReason(`Won by ${diff} points`);
                         }
                     }
-                    setShowStats(true);
+                    setShowStats(false); // We show the victory screen first
                 } else {
                     setTurn(turn === 'red' ? 'blue' : 'red');
                 }
@@ -605,7 +624,6 @@
 
             // --- AI Logic ---
             const makeAiMove = useCallback((level) => {
-                // 0. Brute Force Search (The "Feast" Detector)
                 let bestBruteMove = null;
                 let maxBrutePoints = 0;
 
@@ -627,7 +645,7 @@
                         const c = isHorizontal ? i : fixed;
                         const type = isHorizontal ? 'h' : 'v';
 
-                        for (let k = 1; k < GRID_SIZE; k++) {
+                        for (let k = 1; k < gridSize; k++) {
                             const checkOrigins = [];
                             if (type === 'h') {
                                 for (let offset = 0; offset < k; offset++) {
@@ -642,7 +660,7 @@
                             }
 
                             checkOrigins.forEach(origin => {
-                                if (origin.r < 0 || origin.c < 0 || origin.r + origin.size >= GRID_SIZE || origin.c + origin.size >= GRID_SIZE) return;
+                                if (origin.r < 0 || origin.c < 0 || origin.r + origin.size >= gridSize || origin.c + origin.size >= gridSize) return;
                                 
                                 let borderComplete = true;
                                 for(let s=0; s<origin.size; s++) {
@@ -685,9 +703,9 @@
                 };
 
                 const checkBruteForce = () => {
-                    for(let r=0; r<GRID_SIZE; r++) {
-                        for(let c=0; c<GRID_SIZE; c++) {
-                            for(let len=1; c+len < GRID_SIZE; len++) {
+                    for(let r=0; r < gridSize; r++) {
+                        for(let c=0; c < gridSize; c++) {
+                            for(let len=1; c+len < gridSize; len++) {
                                 if (segments.has(getSegmentKey('h', r, c + len - 1))) break; 
                                 const pts = getPointsForMove({r,c}, {r, c:c+len});
                                 if (pts > maxBrutePoints) {
@@ -695,7 +713,7 @@
                                     bestBruteMove = { start: {r,c}, end: {r, c:c+len} };
                                 }
                             }
-                            for(let len=1; r+len < GRID_SIZE; len++) {
+                            for(let len=1; r+len < gridSize; len++) {
                                 if (segments.has(getSegmentKey('v', r + len - 1, c))) break;
                                 const pts = getPointsForMove({r,c}, {r:r+len, c});
                                 if (pts > maxBrutePoints) {
@@ -709,43 +727,35 @@
 
                 checkBruteForce();
 
-                // Lolligag Logic (Update Counter)
                 if (maxBrutePoints > 0) lolligagCounter.current++;
                 else lolligagCounter.current = 0;
 
-                // --- Level Logic Decision Tree ---
                 let useBest = false;
                 let useWeak = false;
 
                 if (level === 3) {
-                    useBest = true; // Glutton: Always feast
-                } else if (level === 1) { // Mentor
-                    const diff = scores.red - scores.blue; // Human - AI
+                    useBest = true;
+                } else if (level === 1) { 
+                    const diff = scores.red - scores.blue; 
+                    if (diff > 15) useBest = true; 
+                    else if (diff >= 1) useWeak = true; 
+                    else useWeak = true; 
+                } else if (level === 2) { 
+                    const diff = scores.blue - scores.red; 
                     if (diff > 15) {
-                        useBest = true; // Human too far ahead, catch up
-                    } else if (diff >= 1) {
-                        useWeak = true; // Human in sweet spot (1-15 ahead), relax
-                    } else {
-                        useWeak = true; // Human behind, relax
-                    }
-                } else if (level === 2) { // Rival
-                    const diff = scores.blue - scores.red; // AI - Human
-                    if (diff > 15) {
-                        // AI too far ahead. Check lolligag.
                         if (lolligagCounter.current > 2) {
-                            useBest = true; // Punish lolligaging
+                            useBest = true; 
                             setAiStatus("Snatched! (Lolligag)");
                         } else {
-                            useWeak = true; // Let human catch up
+                            useWeak = true; 
                         }
                     } else if (diff >= 1) {
-                        useBest = true; // In sweet spot, maintain lead
+                        useBest = true; 
                     } else {
-                        useBest = true; // AI losing, fight back
+                        useBest = true; 
                     }
                 }
 
-                // Execute Feast if decided
                 if (useBest && maxBrutePoints > 0 && bestBruteMove) {
                     if (!aiStatus) setAiStatus(`Feast! ${maxBrutePoints}pts`);
                     processMove(bestBruteMove.start, bestBruteMove.end);
@@ -753,17 +763,14 @@
                     return;
                 }
 
-                // If forced to use weak, we skip the rest of the high-IQ checks (Sniper)
-                // and go straight to Random, or pick a non-scoring move if possible.
                 if (useWeak) {
                     setAiStatus("Drifting...");
-                    // Try to find a move that scores 0
                     const weakCandidates = [];
                     for(let i=0; i<60; i++) {
-                        const r = Math.floor(Math.random() * GRID_SIZE);
-                        const c = Math.floor(Math.random() * GRID_SIZE);
+                        const r = Math.floor(Math.random() * gridSize);
+                        const c = Math.floor(Math.random() * gridSize);
                         const isH = Math.random() > 0.5;
-                        const maxLen = isH ? GRID_SIZE - 1 - c : GRID_SIZE - 1 - r;
+                        const maxLen = isH ? gridSize - 1 - c : gridSize - 1 - r;
                         if (maxLen > 0) {
                             const len = Math.floor(Math.random() * Math.min(6, maxLen)) + 1;
                             const start = {r, c};
@@ -778,7 +785,6 @@
                             }
                         }
                     }
-                    // If no 0-point moves found easily, just pick random valid
                     if (weakCandidates.length > 0) {
                         const pick = weakCandidates[0];
                         processMove(pick.start, pick.end);
@@ -787,14 +793,10 @@
                     }
                 }
 
-                // --- Standard / Fallback Logic (Sniper, Spoiler, Random) ---
-                // Only runs if we didn't force a Weak move and didn't trigger a Feast.
-                // (Basically Level 3 Fallback or Level 1/2 "Best" fallback if no feast available)
-
                 const candidateMoves = [];
-                for (let size = 1; size < GRID_SIZE; size++) {
-                    for (let r = 0; r <= GRID_SIZE - 1 - size; r++) {
-                        for (let c = 0; c <= GRID_SIZE - 1 - size; c++) {
+                for (let size = 1; size < gridSize; size++) {
+                    for (let r = 0; r <= gridSize - 1 - size; r++) {
+                        for (let c = 0; c <= gridSize - 1 - size; c++) {
                             let interiorClean = true;
                             for (let ir = r + 1; ir < r + size; ir++) {
                                 for(let ic = c; ic < c + size; ic++) {
@@ -855,8 +857,8 @@
                 let spoilerMove = null;
                 let maxThreat = 0;
                 for (let size = 4; size < 8; size++) {
-                   for (let r = 0; r <= GRID_SIZE - 1 - size; r++) {
-                    for (let c = 0; c <= GRID_SIZE - 1 - size; c++) {
+                   for (let r = 0; r <= gridSize - 1 - size; r++) {
+                    for (let c = 0; c <= gridSize - 1 - size; c++) {
                       let interiorClean = true;
                       if (segments.has(getSegmentKey('h', r + Math.floor(size/2), c + Math.floor(size/2)))) interiorClean = false;
                       if (!interiorClean) continue;
@@ -887,10 +889,10 @@
                 // 3. Random Valid
                 const randoms = [];
                 for(let i=0; i<50; i++) {
-                    const r = Math.floor(Math.random() * GRID_SIZE);
-                    const c = Math.floor(Math.random() * GRID_SIZE);
+                    const r = Math.floor(Math.random() * gridSize);
+                    const c = Math.floor(Math.random() * gridSize);
                     const isH = Math.random() > 0.5;
-                    const maxLen = isH ? GRID_SIZE - 1 - c : GRID_SIZE - 1 - r;
+                    const maxLen = isH ? gridSize - 1 - c : gridSize - 1 - r;
                     if (maxLen > 0) {
                         const len = Math.floor(Math.random() * Math.min(6, maxLen)) + 1;
                         const start = {r, c};
@@ -905,21 +907,47 @@
                     processMove(pick.start, pick.end);
                 } else {
                     setAiStatus('Filling...');
-                    for(let r=0; r<GRID_SIZE; r++) {
-                        for(let c=0; c<GRID_SIZE; c++) {
-                            if (c < 18 && !segments.has(getSegmentKey('h',r,c))) { processMove({r,c}, {r,c:c+1}); setAiThinking(false); return; }
-                            if (r < 18 && !segments.has(getSegmentKey('v',r,c))) { processMove({r,c}, {r:r+1,c}); setAiThinking(false); return; }
+                    for(let r=0; r < gridSize; r++) {
+                        for(let c=0; c < gridSize; c++) {
+                            if (c < gridSize - 1 && !segments.has(getSegmentKey('h',r,c))) { processMove({r,c}, {r,c:c+1}); setAiThinking(false); return; }
+                            if (r < gridSize - 1 && !segments.has(getSegmentKey('v',r,c))) { processMove({r,c}, {r:r+1,c}); setAiThinking(false); return; }
                         }
                     }
                 }
                 setAiThinking(false);
 
-            }, [segments, isValidMove, scores]);
+            }, [segments, isValidMove, scores, gridSize]);
 
             const startGame = (mode, level = 3) => {
                 setGameMode(mode);
                 setAiLevel(level);
-                lolligagCounter.current = 0; // Reset streak
+                setHeatMap(getInitialHeatMap(gridSize));
+                lolligagCounter.current = 0; 
+            };
+
+            // Quits to main menu
+            const resetGame = () => {
+                setSegments(new Map()); setScores({ red: 0, blue: 0 }); setTurn('red');
+                setMoveHistory([]);
+                setGameOver(false); setWinner(null); setWinReason('');
+                setAnimatingSquares([]); setCompletedSquares([]);
+                setHeatMap(getInitialHeatMap(gridSize));
+                setStats({ red: { segments: 0, totalLen: 0, linesByLen: {} }, blue: { segments: 0, totalLen: 0, linesByLen: {} } });
+                setGameMode(null); setAiStatus(''); setShowStats(false); setShow3D(false); setShowRules(false); setShowRecord(false); setViewingBoard(false);
+                interaction.current = { isDragging: false, start: null, current: null, valid: false };
+            };
+
+            // Restarts the game keeping the current settings
+            const playAgain = () => {
+                setSegments(new Map()); setScores({ red: 0, blue: 0 }); setTurn('red');
+                setMoveHistory([]);
+                setGameOver(false); setWinner(null); setWinReason('');
+                setAnimatingSquares([]); setCompletedSquares([]);
+                setHeatMap(getInitialHeatMap(gridSize));
+                setStats({ red: { segments: 0, totalLen: 0, linesByLen: {} }, blue: { segments: 0, totalLen: 0, linesByLen: {} } });
+                setAiStatus(''); setShowStats(false); setShow3D(false); setShowRules(false); setShowRecord(false); setViewingBoard(false);
+                interaction.current = { isDragging: false, start: null, current: null, valid: false };
+                lolligagCounter.current = 0; 
             };
 
             useEffect(() => {
@@ -935,7 +963,7 @@
             const drawBoard = (ctx, width, height) => {
                 const dpr = window.devicePixelRatio || 1;
                 const innerWidth = width - PADDING * 2;
-                const spacing = innerWidth / (GRID_SIZE - 1);
+                const spacing = innerWidth / (gridSize - 1);
 
                 ctx.clearRect(0, 0, width, height);
                 ctx.save();
@@ -956,8 +984,8 @@
                 });
 
                 ctx.fillStyle = COLORS.grid;
-                for (let r = 0; r < GRID_SIZE; r++) {
-                    for (let c = 0; c < GRID_SIZE; c++) {
+                for (let r = 0; r < gridSize; r++) {
+                    for (let c = 0; c < gridSize; c++) {
                         ctx.beginPath();
                         ctx.arc(c * spacing, r * spacing, 1.2 * dpr, 0, Math.PI * 2);
                         ctx.fill();
@@ -1018,7 +1046,7 @@
                 };
                 render();
                 return () => cancelAnimationFrame(frameId);
-            }, [segments, animatingSquares, completedSquares]);
+            }, [segments, animatingSquares, completedSquares, gridSize]);
 
             useEffect(() => {
                 const interval = setInterval(() => {
@@ -1035,10 +1063,10 @@
                 const x = (e.clientX || e.touches[0].clientX) - rect.left - PADDING;
                 const y = (e.clientY || e.touches[0].clientY) - rect.top - PADDING;
                 const innerWidth = rect.width - PADDING * 2;
-                const spacing = innerWidth / (GRID_SIZE - 1);
+                const spacing = innerWidth / (gridSize - 1);
                 const c = Math.round(x / spacing);
                 const r = Math.round(y / spacing);
-                return { r: Math.max(0, Math.min(GRID_SIZE - 1, r)), c: Math.max(0, Math.min(GRID_SIZE - 1, c)) };
+                return { r: Math.max(0, Math.min(gridSize - 1, r)), c: Math.max(0, Math.min(gridSize - 1, c)) };
             };
 
             const handlePointerDown = (e) => {
@@ -1068,17 +1096,6 @@
                 interaction.current = { isDragging: false, start: null, current: null, valid: false };
             };
 
-            const resetGame = () => {
-                setSegments(new Map()); setScores({ red: 0, blue: 0 }); setTurn('red');
-                setMoveHistory([]);
-                setGameOver(false); setWinner(null); setWinReason('');
-                setAnimatingSquares([]); setCompletedSquares([]);
-                setHeatMap(Array(18).fill().map(() => Array(18).fill().map(() => ({ red: 0, blue: 0 }))));
-                setStats({ red: { segments: 0, totalLen: 0, linesByLen: {} }, blue: { segments: 0, totalLen: 0, linesByLen: {} } });
-                setGameMode(null); setAiStatus(''); setShowStats(false); setShow3D(false); setShowRules(false); setShowRecord(false);
-                interaction.current = { isDragging: false, start: null, current: null, valid: false };
-            };
-
             if (gameMode === null) {
                 return (
                     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-sans text-slate-800">
@@ -1088,8 +1105,20 @@
                                 <h1 className="text-4xl font-bold text-slate-900 mb-2">Go Squared</h1>
                                 <p className="text-slate-500">Tournament Edition</p>
                             </div>
+                            
                             <div className="space-y-4">
-                                <button onClick={() => startGame('pvp')} className="w-full flex items-center justify-center gap-3 p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all group">
+                                <div className="space-y-2">
+                                    <div className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Board Size</div>
+                                    <div className="flex justify-center gap-2">
+                                        {[15, 17, 19].map(size => (
+                                            <button key={size} onClick={() => setGridSize(size)} className={`px-4 py-2 rounded-lg font-bold transition-colors ${gridSize === size ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                                {size}x{size}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button onClick={() => startGame('pvp')} className="w-full flex items-center justify-center gap-3 p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all group mt-2">
                                     <User className="w-6 h-6 text-slate-400 group-hover:text-red-500" />
                                     <div className="text-left"><div className="font-bold text-lg group-hover:text-red-700">Human vs. Human</div></div>
                                 </button>
@@ -1105,9 +1134,9 @@
                                             <div className="font-bold text-yellow-700">Lvl 2</div>
                                             <div className="text-xs text-yellow-600">Rival</div>
                                         </button>
-                                        <button onClick={() => startGame('ai', 3)} className="p-3 border-2 border-red-200 bg-red-50 rounded-lg hover:bg-red-100 hover:border-red-300 transition-colors text-center">
+                                        <button onClick={() => startGame('ai', 3)} className="p-3 border-2 border-red-200 bg-red-50 rounded-lg hover:bg-red-100 hover:border-red-300 transition-colors text-center relative overflow-hidden">
                                             <div className="font-bold text-red-700">Lvl 3</div>
-                                            <div className="text-xs text-red-600">Glutton</div>
+                                            <div className="text-[10px] text-red-600 font-bold uppercase tracking-wider">Glutton</div>
                                         </button>
                                     </div>
                                 </div>
@@ -1129,7 +1158,7 @@
             }
 
             return (
-                <div className="min-h-screen bg-slate-50 flex flex-col items-center font-sans text-slate-800 selection:bg-none touch-none overflow-hidden relative">
+                <div className="min-h-screen bg-slate-50 flex flex-col items-center font-sans text-slate-800 selection:bg-none touch-none overflow-x-hidden relative pb-16">
                     <div className="w-full max-w-2xl px-4 pt-6 pb-2 flex flex-col gap-4 z-10">
                         <div className="flex justify-between items-center">
                             <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
@@ -1145,8 +1174,8 @@
                                 </span>
                             </h1>
                             <div className="flex gap-2">
-                                {gameOver && !showStats && <button onClick={() => setShowStats(true)} className="p-2 bg-white border border-slate-200 rounded-full hover:bg-slate-100"><BarChart3 className="w-5 h-5 text-indigo-600" /></button>}
-                                <button onClick={resetGame} className="p-2 bg-white border border-slate-200 rounded-full hover:bg-slate-100"><RefreshCw className="w-5 h-5 text-slate-600" /></button>
+                                {gameOver && !showStats && <button onClick={() => {setShowStats(true); setViewingBoard(false);}} className="p-2 bg-white border border-slate-200 rounded-full hover:bg-slate-100"><BarChart3 className="w-5 h-5 text-indigo-600" /></button>}
+                                <button onClick={resetGame} title="Quit to Menu" className="p-2 bg-white border border-slate-200 rounded-full hover:bg-slate-100"><RefreshCw className="w-5 h-5 text-slate-600" /></button>
                             </div>
                         </div>
 
@@ -1187,16 +1216,33 @@
                                 onPointerLeave={handlePointerUp}
                                 className={`w-full h-full touch-none ${aiThinking ? 'cursor-wait' : ''}`}
                             />
-                            {gameOver && !showStats && !show3D && !showRecord && (
+                            {gameOver && !showStats && !show3D && !showRecord && !viewingBoard && (
                                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-20 animate-in fade-in">
                                     <div className="bg-white p-8 rounded-2xl shadow-2xl border text-center">
                                         <h2 className="text-3xl font-bold mb-2">{winner === 'red' ? 'Red Wins!' : winner === 'blue' ? 'Blue Wins!' : 'Draw!'}</h2>
-                                        <button onClick={() => setShowStats(true)} className="mt-4 px-6 py-2 bg-slate-900 text-white rounded-lg">View Stats</button>
+                                        
+                                        <div className="flex gap-3 justify-center mt-6">
+                                            <button onClick={() => setShowStats(true)} className="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-semibold flex items-center gap-2">
+                                                <BarChart3 className="w-5 h-5" /> Stats
+                                            </button>
+                                            <button onClick={playAgain} className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold flex items-center gap-2 shadow-sm">
+                                                <RefreshCw className="w-5 h-5" /> Play Again
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             )}
                         </div>
                     </div>
+
+                    {/* Screenshot "Go Back" Button placed well below the board */}
+                    {viewingBoard && (
+                        <div className="w-full flex justify-center mt-6 z-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <button onClick={() => { setViewingBoard(false); setShowStats(true); }} className="px-8 py-3 bg-slate-900 text-white rounded-full font-bold shadow-xl hover:bg-slate-800 transition-all hover:scale-105 flex items-center gap-2">
+                                Go Back to Stats
+                            </button>
+                        </div>
+                    )}
 
                     <StatsModal 
                         show={showStats} 
@@ -1204,10 +1250,12 @@
                         stats={stats} 
                         onOpen3D={() => setShow3D(true)} 
                         onOpenRecord={() => setShowRecord(true)}
+                        onViewBoard={() => { setShowStats(false); setViewingBoard(true); }}
+                        onPlayAgain={playAgain}
                         onClose={() => setShowStats(false)} 
                     />
-                    {show3D && <ThreeView heatMap={heatMap} onClose={() => setShow3D(false)} />}
-                    {showRecord && <GameRecordModal moves={moveHistory} onClose={() => setShowRecord(false)} />}
+                    {show3D && <ThreeView heatMap={heatMap} gridSize={gridSize} onClose={() => setShow3D(false)} />}
+                    {showRecord && <GameRecordModal moves={moveHistory} gridSize={gridSize} onClose={() => setShowRecord(false)} />}
                 </div>
             );
         };
